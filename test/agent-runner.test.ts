@@ -135,6 +135,7 @@ import {
   runAgent,
   SUBAGENT_TOOL_NAMES,
   setDefaultMaxTurns,
+  setDefaultSessionDir,
   setGraceTurns,
   setRememberAgents,
 } from "../src/agent-runner.js";
@@ -209,6 +210,7 @@ beforeEach(() => {
   // The setting is process-global; a test that flips it must not leak the
   // flip into the next one.
   setRememberAgents(true);
+  setDefaultSessionDir(undefined);
   settingsManagerGetSessionDir.mockReset();
   settingsManagerGetSessionDir.mockReturnValue(undefined);
   settingsManagerCreate.mockClear();
@@ -884,6 +886,7 @@ describe("agent-runner session persistence", () => {
 
   it("keeps the session in memory when rememberAgents is off", async () => {
     setRememberAgents(false);
+    setDefaultSessionDir("/global/subagent-sessions");
     vi.mocked(getAgentConfig).mockReturnValueOnce(makeAgentConfig());
     const { session } = createSession("OK");
     createAgentSession.mockResolvedValue({ session });
@@ -983,6 +986,81 @@ describe("agent-runner session persistence", () => {
     expect(sessionManagerCreate).toHaveBeenCalledWith(
       "/repo",
       "/repo/.seams/pi-sessions/seam-plan-reviewer",
+      { parentSession: "/sessions/parent.jsonl" },
+    );
+  });
+
+  it("uses the global sessionDir for a persisted top-level agent", async () => {
+    setDefaultSessionDir(".pi/subagent-sessions");
+    vi.mocked(getAgentConfig).mockReturnValueOnce(makeAgentConfig());
+    settingsManagerGetSessionDir.mockReturnValue("/normal/pi/sessions");
+    createAgentSession.mockResolvedValue({ session: createSession("OK").session });
+
+    await runAgent(ctx, "Explore", "go", { pi, cwd: "/repo" });
+
+    expect(sessionManagerCreate).toHaveBeenCalledWith(
+      "/repo",
+      "/repo/.pi/subagent-sessions",
+      { parentSession: "/sessions/parent.jsonl" },
+    );
+  });
+
+  it("lets frontmatter sessionDir override the global sessionDir", async () => {
+    setDefaultSessionDir("~/.pi/subagent-sessions");
+    vi.mocked(getAgentConfig).mockReturnValueOnce(
+      makeAgentConfig({ persistSession: true, sessionDir: "/agent/sessions" }),
+    );
+    createAgentSession.mockResolvedValue({ session: createSession("OK").session });
+
+    await runAgent(ctx, "Explore", "go", { pi, cwd: "/repo" });
+
+    expect(sessionManagerCreate).toHaveBeenCalledWith(
+      "/repo",
+      "/agent/sessions",
+      { parentSession: "/sessions/parent.jsonl" },
+    );
+  });
+
+  it("expands ~ in the global sessionDir", async () => {
+    setDefaultSessionDir("~/.pi/subagent-sessions");
+    vi.mocked(getAgentConfig).mockReturnValueOnce(makeAgentConfig());
+    createAgentSession.mockResolvedValue({ session: createSession("OK").session });
+
+    await runAgent(ctx, "Explore", "go", { pi, cwd: "/repo" });
+
+    expect(sessionManagerCreate).toHaveBeenCalledWith(
+      "/repo",
+      join(homedir(), ".pi/subagent-sessions"),
+      { parentSession: "/sessions/parent.jsonl" },
+    );
+  });
+
+  it("does not apply the global sessionDir to an explicitly persisted nested agent", async () => {
+    setDefaultSessionDir("/global/subagent-sessions");
+    vi.mocked(getAgentConfig).mockReturnValueOnce(makeAgentConfig({ persistSession: true }));
+    settingsManagerGetSessionDir.mockReturnValue("/normal/pi/sessions");
+    createAgentSession.mockResolvedValue({ session: createSession("OK").session });
+
+    await runAgent(ctx, "Explore", "go", { pi, nested: true });
+
+    expect(sessionManagerCreate).toHaveBeenCalledWith(
+      "/tmp",
+      "/normal/pi/sessions",
+      { parentSession: "/sessions/parent.jsonl" },
+    );
+  });
+
+  it("does not apply the global sessionDir to a workflow child", async () => {
+    setDefaultSessionDir("/global/subagent-sessions");
+    vi.mocked(getAgentConfig).mockReturnValueOnce(makeAgentConfig());
+    settingsManagerGetSessionDir.mockReturnValue("/normal/pi/sessions");
+    createAgentSession.mockResolvedValue({ session: createSession("OK").session });
+
+    await runAgent(ctx, "Explore", "go", { pi, workflow: true });
+
+    expect(sessionManagerCreate).toHaveBeenCalledWith(
+      "/tmp",
+      "/normal/pi/sessions",
       { parentSession: "/sessions/parent.jsonl" },
     );
   });

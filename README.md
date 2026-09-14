@@ -615,7 +615,7 @@ Runtime tuning values set via `/agents` → Settings (max concurrency, max foreg
 - **Global:** `~/.pi/agent/subagents.json` — your machine-wide defaults. Edit by hand; the `/agents` menu never writes here.
 - **Project:** `<cwd>/.pi/subagents.json` — per-project overrides. Written by `/agents` → Settings.
 
-**Precedence:** project overrides global on any field present in both. Missing fields fall back to the hardcoded defaults (max concurrency `10`, max foreground concurrency `0` = unlimited, default max turns unlimited, grace turns `5`, nested depth `2`, join mode `smart`, defaults enabled).
+**Precedence:** project overrides global on any field present in both. Missing fields fall back to the hardcoded defaults (max concurrency `10`, max foreground concurrency `0` = unlimited, default max turns unlimited, grace turns `5`, nested depth `2`, join mode `smart`, defaults enabled). `sessionDir` is unset by default, so persisted subagents use pi's normal session directory unless configured.
 
 **Nested depth** (`maxSubagentDepth`, default `2`): the hard ceiling on [nested delegation](#nested-subagents), counted from the main session (main = 0, its subagents = 1). `0` or `1` disables nesting project-wide regardless of any agent's `allowed_subagents`. Read when a subagent session is built, so a change applies to agents started after it.
 
@@ -630,6 +630,23 @@ Runtime tuning values set via `/agents` → Settings (max concurrency, max foreg
 **Background by default** (`backgroundByDefault`, default `true`): what an `Agent` call that doesn't say means. On — following Claude Code — the agent runs detached, the call returns its ID immediately, and a completion notification carries a preview of the result (`get_subagent_result` for the full text). Set `false` to restore the previous behaviour, where an unqualified spawn blocked the turn and returned its output inline. An explicit `run_in_background` on the call, or in an agent file's frontmatter, overrides this in both directions; the setting only decides what "unspecified" means. **Top-level only** — a nested spawn (an agent spawning its own) always defaults to foreground, because a detached child is stopped when its parent settles and has no notification path of its own. Toggle via `/agents → Settings → Background by default`; applied live.
 
 **Remember agents** (`rememberAgents`, default `true`): whether subagents persist their pi session, which is what lets [`@handle`](#agent-mentions) reopen an agent's conversation after its in-memory record has been evicted. Two visible consequences of the default: top-level subagents write a session file, and they nest under the session that spawned them in pi's `/resume`. Agents spawned by another agent are excluded — they get no handle, so nothing could reopen their transcript. A custom agent's `persist_session` frontmatter overrides this per agent, in both directions. Toggle via `/agents → Settings → Remember agents`; with it off, handles expire with their record (roughly ten minutes past completion) and `@explore` then starts a fresh agent rather than resuming — the behaviour before this setting existed.
+
+**Session directory** (`sessionDir`, unset by default): routes persisted top-level subagent sessions to a dedicated directory instead of pi's normal session store. This keeps top-level subagent runs out of the regular `/resume` list while preserving complete, resumable pi sessions. Configure it in `subagents.json`; relative paths resolve from the subagent's effective cwd, `~` expands to the home directory, and absolute paths are used as written. An agent's `session_dir` frontmatter takes precedence. Workflow-owned and nested agents do not use this default; when explicitly persisted, they still use their own `session_dir` or pi's normal session directory. This setting has no effect when the effective `persist_session` / `rememberAgents` value is false.
+
+To browse sessions stored separately, point pi at the same directory explicitly:
+
+```bash
+pi --session-dir ~/.pi/agent/subagent-sessions --resume
+```
+
+For example, keep durable subagent sessions out of the normal resume picker with a global config:
+
+```json
+{
+  "rememberAgents": true,
+  "sessionDir": "~/.pi/agent/subagent-sessions"
+}
+```
 
 **Output transcript** (`outputTranscript`, default `true`): the project/global default for writing each subagent's `.output` transcript. Toggle via `/agents → Settings → Output transcript`, or set `false` in `subagents.json` to make transcripts opt-in project-wide — useful when run transcripts shouldn't sit on disk for backup or DLP tooling to pick up. A custom agent's `output_transcript` frontmatter overrides this per agent. Applied live at spawn time. Governs only the transcript, not `persist_session`, worktree commits, or memory files.
 

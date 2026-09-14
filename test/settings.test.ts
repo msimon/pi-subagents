@@ -144,6 +144,22 @@ describe("settings persistence", () => {
     expect(loadSettings(projectDir)).toEqual({}); // non-boolean dropped
   });
 
+  it("round-trips sessionDir; trims it and drops non-string or empty values", () => {
+    saveSettings({ sessionDir: " ~/.pi/subagent-sessions " }, projectDir);
+    expect(loadSettings(projectDir)).toEqual({ sessionDir: "~/.pi/subagent-sessions" });
+    writeProject({ sessionDir: 42 } as any);
+    expect(loadSettings(projectDir)).toEqual({});
+    writeProject({ sessionDir: "   " });
+    expect(loadSettings(projectDir)).toEqual({});
+  });
+
+  it("loads a global sessionDir and lets the project override it", () => {
+    writeGlobal({ sessionDir: "~/.pi/global-subagent-sessions" });
+    expect(loadSettings(projectDir)).toEqual({ sessionDir: "~/.pi/global-subagent-sessions" });
+    writeProject({ sessionDir: ".pi/project-subagent-sessions" });
+    expect(loadSettings(projectDir)).toEqual({ sessionDir: ".pi/project-subagent-sessions" });
+  });
+
   it("round-trips widgetMode; keeps valid values, drops invalid", () => {
     saveSettings({ widgetMode: "off" }, projectDir);
     expect(loadSettings(projectDir)).toEqual({ widgetMode: "off" });
@@ -545,11 +561,13 @@ describe("settings persistence", () => {
         setToolDescriptionMode: vi.fn(),
         setFleetView: vi.fn(),
         setAgentMentions: vi.fn(),
-      setRememberAgents: vi.fn(),
+        setRememberAgents: vi.fn(),
+        setSessionDir: vi.fn(),
         setWidgetMode: vi.fn(),
         setViewerMarkdown: vi.fn(),
         setOutputTranscript: vi.fn(),
         setWorktreeIsolation: vi.fn(),
+        setWorkflowsEnabled: vi.fn(),
         setMaxSubagentDepth: vi.fn(),
         setFallbackSubagent: vi.fn(),
         setReportUsage: vi.fn(),
@@ -692,6 +710,13 @@ describe("settings persistence", () => {
       expect(appliers.setRememberAgents).toHaveBeenCalledTimes(1); // absence is "use default"
     });
 
+    it("applies sessionDir; skips it when absent", () => {
+      applySettings({ sessionDir: "~/.pi/subagent-sessions" }, appliers);
+      expect(appliers.setSessionDir).toHaveBeenCalledWith("~/.pi/subagent-sessions");
+      applySettings({}, appliers);
+      expect(appliers.setSessionDir).toHaveBeenCalledTimes(1);
+    });
+
     it("applies scopeModels: false", () => {
       applySettings({ scopeModels: false }, appliers);
       expect(appliers.setScopeModels).toHaveBeenCalledWith(false);
@@ -796,11 +821,13 @@ describe("settings persistence", () => {
         setToolDescriptionMode: vi.fn(),
         setFleetView: vi.fn(),
         setAgentMentions: vi.fn(),
-      setRememberAgents: vi.fn(),
+        setRememberAgents: vi.fn(),
+        setSessionDir: vi.fn(),
         setWidgetMode: vi.fn(),
         setViewerMarkdown: vi.fn(),
         setOutputTranscript: vi.fn(),
         setWorktreeIsolation: vi.fn(),
+        setWorkflowsEnabled: vi.fn(),
         setMaxSubagentDepth: vi.fn(),
         setFallbackSubagent: vi.fn(),
         setReportUsage: vi.fn(),

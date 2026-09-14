@@ -153,6 +153,12 @@ export interface SubagentsSettings {
    */
   rememberAgents?: boolean;
   /**
+   * Default session directory for persisted top-level subagents. Relative paths
+   * resolve from each subagent's effective cwd. Per-agent `session_dir` wins.
+   * Undefined falls back to pi's normal session directory.
+   */
+  sessionDir?: string;
+  /**
    * Display mode for the persistent above-editor agent widget:
    *   - `all`: show every agent (foreground + background).
    *   - `background`: hide foreground agents — they already render inline as the
@@ -322,6 +328,7 @@ export interface SettingsAppliers {
   setFleetView: (b: boolean) => void;
   setAgentMentions: (mode: AgentMentionMode) => void;
   setRememberAgents: (b: boolean) => void;
+  setSessionDir: (dir: string) => void;
   setWidgetMode: (mode: WidgetMode) => void;
   setOutputTranscript: (b: boolean) => void;
   setWorktreeIsolation: (b: boolean) => void;
@@ -427,6 +434,9 @@ function sanitize(raw: unknown): SubagentsSettings {
   if (typeof r.rememberAgents === "boolean") {
     out.rememberAgents = r.rememberAgents;
   }
+  if (typeof r.sessionDir === "string" && r.sessionDir.trim() !== "") {
+    out.sessionDir = r.sessionDir.trim();
+  }
   if (typeof r.widgetMode === "string" && VALID_WIDGET_MODES.has(r.widgetMode)) {
     out.widgetMode = r.widgetMode as WidgetMode;
   }
@@ -529,6 +539,7 @@ export function applySettings(s: SubagentsSettings, appliers: SettingsAppliers):
   if (typeof s.fleetView === "boolean") appliers.setFleetView(s.fleetView);
   if (s.agentMentions) appliers.setAgentMentions(s.agentMentions);
   if (typeof s.rememberAgents === "boolean") appliers.setRememberAgents(s.rememberAgents);
+  if (typeof s.sessionDir === "string") appliers.setSessionDir(s.sessionDir);
   if (s.widgetMode) appliers.setWidgetMode(s.widgetMode);
   if (typeof s.outputTranscript === "boolean") appliers.setOutputTranscript(s.outputTranscript);
   if (typeof s.worktreeIsolation === "boolean") appliers.setWorktreeIsolation(s.worktreeIsolation);

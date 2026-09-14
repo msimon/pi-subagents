@@ -349,6 +349,17 @@ export function getRememberAgents(): boolean { return rememberAgents; }
 /** Set whether subagent sessions are persisted by default. */
 export function setRememberAgents(b: boolean): void { rememberAgents = b; }
 
+/**
+ * Optional session directory for persisted top-level subagents. Relative paths
+ * resolve from the subagent's effective cwd; per-agent frontmatter wins.
+ */
+let defaultSessionDir: string | undefined;
+
+/** Get the configured default directory for persisted top-level subagents. */
+export function getDefaultSessionDir(): string | undefined { return defaultSessionDir; }
+/** Set the configured default directory for persisted top-level subagents. */
+export function setDefaultSessionDir(dir: string | undefined): void { defaultSessionDir = dir; }
+
 /** Additional turns allowed after the soft limit steer message. */
 let graceTurns = 5;
 
@@ -953,19 +964,25 @@ export async function runAgent(
   }
 
   const settingsManager = SettingsManager.create(configCwd, agentDir);
-  const configuredSessionDir = resolveConfiguredSessionDir(agentConfig?.sessionDir, effectiveCwd);
-  const defaultSessionDir = process.env.PI_CODING_AGENT_SESSION_DIR ?? settingsManager.getSessionDir?.();
-  // Frontmatter wins when it says anything; otherwise the project default,
-  // which `rememberAgents` supplies for top-level agents only. Same precedence
+  const agentSessionDir = resolveConfiguredSessionDir(agentConfig?.sessionDir, effectiveCwd);
+  let globalSessionDir: string | undefined;
+  if (!options.nested && !options.workflow) {
+    globalSessionDir = resolveConfiguredSessionDir(defaultSessionDir, effectiveCwd);
+  }
+  const piSessionDir = process.env.PI_CODING_AGENT_SESSION_DIR ?? settingsManager.getSessionDir?.();
+  // Per-agent frontmatter wins, then the subagents setting for top-level agents,
+  // then pi's normal session directory. `rememberAgents` supplies the persistence
+  // default for top-level agents only, with the same per-agent override behavior
   // as `outputTranscript`.
+  const sessionDir = agentSessionDir ?? globalSessionDir ?? piSessionDir;
   const persistSession = agentConfig?.persistSession ?? (options.nested ? false : rememberAgents);
   const sessionManager = options.resumeSessionFile
     // Reopening an existing conversation: the file already carries its own
     // header (cwd, parent) and history, so none of the create-time options
     // apply. `sessionDir` still matters for a later /new or /branch off it.
-    ? SessionManager.open(options.resumeSessionFile, configuredSessionDir ?? defaultSessionDir)
+    ? SessionManager.open(options.resumeSessionFile, sessionDir)
     : persistSession
-      ? SessionManager.create(effectiveCwd, configuredSessionDir ?? defaultSessionDir, {
+      ? SessionManager.create(effectiveCwd, sessionDir, {
           // Optional metadata — it only nests the subagent under its spawner in
           // `/resume`. Until `rememberAgents` this ran solely for the rare
           // `persist_session: true` agent; now it runs for every spawn, so a
