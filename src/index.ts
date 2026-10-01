@@ -3390,8 +3390,8 @@ Write the file using the write tool. Only write the file, nothing else.`;
 
     let model: string | undefined;
     if (modelChoice === "haiku") model = "anthropic/claude-haiku-4-5";
-    else if (modelChoice === "sonnet") model = "anthropic/claude-sonnet-4-6";
-    else if (modelChoice === "opus") model = "anthropic/claude-opus-4-6";
+    else if (modelChoice === "sonnet") model = "anthropic/claude-sonnet-5-5";
+    else if (modelChoice === "opus") model = "anthropic/claude-opus-5-5";
     else if (modelChoice === "custom...") {
       model = (await ctx.ui.input("Model (provider/modelId)")) || undefined;
     }
