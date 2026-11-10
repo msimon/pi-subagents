@@ -3290,7 +3290,7 @@ The file format is a markdown file with YAML frontmatter and a system prompt bod
 description: <one-line description shown in UI>
 color: <optional agent name badge color: red, blue, green, yellow, purple, orange, pink, cyan, an Agency Agents alias, or quoted "#RRGGBB">
 tools: <comma-separated built-in tools: read, bash, edit, write, grep, find, ls. Use "none" for no tools. Omit for all tools>
-model: <optional model as "provider/modelId", e.g. "anthropic/claude-haiku-4-5". Omit to inherit parent model>
+model: <optional model as "provider/modelId", e.g. "anthropic/claude-haiku-5-5". Omit to inherit parent model>
 thinking: <optional thinking level: ${THINKING_LEVELS.join(", ")}. Omit to inherit>
 max_turns: <optional max agentic turns. 0 or omit for unlimited (default)>
 prompt_mode: <"replace" (body IS the full system prompt) or "append" (body is appended to default prompt). Default: replace>
@@ -3389,7 +3389,7 @@ Write the file using the write tool. Only write the file, nothing else.`;
     if (!modelChoice) return;
 
     let model: string | undefined;
-    if (modelChoice === "haiku") model = "anthropic/claude-haiku-4-5";
+    if (modelChoice === "haiku") model = "anthropic/claude-haiku-5-5";
     else if (modelChoice === "sonnet") model = "anthropic/claude-sonnet-5-5";
     else if (modelChoice === "opus") model = "anthropic/claude-opus-5-5";
     else if (modelChoice === "custom...") {
